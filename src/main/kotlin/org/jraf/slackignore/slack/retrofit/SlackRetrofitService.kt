@@ -26,6 +26,7 @@ package org.jraf.slackignore.slack.retrofit
 
 import org.jraf.slackignore.slack.apimodels.query.SlackApiChatPostMessageQuery
 import org.jraf.slackignore.slack.apimodels.query.SlackApiConversationsMarkQuery
+import org.jraf.slackignore.slack.apimodels.response.SlackApiAuthTestResponse
 import org.jraf.slackignore.slack.apimodels.response.SlackApiChatPostMessageResponse
 import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsHistoryResponse
 import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsInfoResponse
@@ -38,6 +39,11 @@ import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface SlackRetrofitService {
+    // https://api.slack.com/methods/auth.test
+    @GET("auth.test")
+    suspend fun authTest(): SlackApiAuthTestResponse
+
+
     // https://api.slack.com/methods/chat.postMessage
     @POST("chat.postMessage")
     suspend fun chatPostMessage(

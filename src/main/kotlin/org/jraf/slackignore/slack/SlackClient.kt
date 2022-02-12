@@ -89,6 +89,16 @@ class SlackClient(
 
     private val service: SlackRetrofitService = createRetrofit().create(SlackRetrofitService::class.java)
 
+    suspend fun tokenOwnerId(): String {
+        return try {
+            val response = service.authTest()
+            response.userId
+        } catch (e: Exception) {
+            LOGGER.warn("Could not make network call", e)
+            throw e
+        }
+    }
+
     suspend fun chatPostMessage(channel: String, text: String): Boolean {
         return try {
             val response = service.chatPostMessage(SlackApiChatPostMessageQuery(channel = channel, text = text))
@@ -139,7 +149,7 @@ class SlackClient(
         }
     }
 
-    suspend fun startWebSocket(url: String) {
+    suspend fun startWebSocket(url: String, handler: WebSocketHandler) {
         val moshi: Moshi = Moshi.Builder().build()
         val messageJsonAdapter = moshi.adapter(SlackApiWebSocketMessage::class.java)
         val messageMessageJsonAdapter = moshi.adapter(SlackApiWebSocketMessageMessage::class.java)
@@ -160,22 +170,7 @@ class SlackClient(
                 val message = messageJsonAdapter.fromJson(text)!!
                 if (message.type == "message") {
                     val messageMessage = messageMessageJsonAdapter.fromJson(text)!!
-                    LOGGER.debug("messageMessage=$messageMessage")
-
-                    val conversationHistory = runBlocking { conversationsHistory(messageMessage.channel).map { it.ts } }
-                    val lastReadMessageTs = runBlocking { lastReadMessageTs(messageMessage.channel) }
-
-                    LOGGER.debug("lastReadMessageTs=$lastReadMessageTs conversationHistory=$conversationHistory")
-
-                    if (lastReadMessageTs == conversationHistory[0] || lastReadMessageTs == conversationHistory[1]) {
-                        LOGGER.debug("Up to date!")
-                        if (messageMessage.text.contains("sport", ignoreCase = true)) {
-                            LOGGER.info("Ignoring message '${messageMessage.text}'")
-                            runBlocking { conversationsMark(messageMessage.channel, messageMessage.ts) }
-                        }
-                    } else {
-                        LOGGER.debug("NOT up to date!")
-                    }
+                    handleChannelMessage(messageMessage, handler)
                 }
             }
 
@@ -195,5 +190,32 @@ class SlackClient(
                 LOGGER.debug("WebSocket failure $t $response")
             }
         })
+    }
+
+    private fun handleChannelMessage(
+        message: SlackApiWebSocketMessageMessage,
+        handler: WebSocketHandler,
+    ) {
+        LOGGER.debug("message=$message")
+
+        if (message.user == handler.tokenOwnerId) {
+            LOGGER.debug("Own message, ignoring")
+            return
+        }
+
+        val conversationHistory = runBlocking { conversationsHistory(message.channel).map { it.ts } }
+        val lastReadMessageTs = runBlocking { lastReadMessageTs(message.channel) }
+
+        LOGGER.debug("lastReadMessageTs=$lastReadMessageTs conversationHistory=$conversationHistory")
+
+        if (lastReadMessageTs == conversationHistory[0] || lastReadMessageTs == conversationHistory[1]) {
+            LOGGER.debug("Up to date!")
+            if (message.text.contains("sport", ignoreCase = true)) {
+                LOGGER.info("Ignoring message '${message.text}'")
+                runBlocking { conversationsMark(message.channel, message.ts) }
+            }
+        } else {
+            LOGGER.debug("NOT up to date!")
+        }
     }
 }

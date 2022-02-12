@@ -26,6 +26,7 @@ package org.jraf.slackignore
 
 import org.jraf.slackignore.arguments.Arguments
 import org.jraf.slackignore.slack.SlackClient
+import org.jraf.slackignore.slack.WebSocketHandler
 import org.slf4j.LoggerFactory
 import org.slf4j.impl.SimpleLogger
 
@@ -37,7 +38,7 @@ private val LOGGER = run {
 }
 
 suspend fun main(av: Array<String>) {
-    LOGGER.debug("Hello, World!")
+    LOGGER.info("Hello, World!")
     val arguments = Arguments(av)
 
     val slackClient = SlackClient(authToken = arguments.slackAuthToken, cookie = arguments.slackCookie)
@@ -47,8 +48,11 @@ suspend fun main(av: Array<String>) {
 //        text = "The current time is ${Date()}"
 //    )
 
-    val webSocketUrl = slackClient.rtmConnect()
-    print(webSocketUrl)
+    val tokenOwnerId = slackClient.tokenOwnerId()
+    LOGGER.debug("Token owner's id: $tokenOwnerId")
 
-    slackClient.startWebSocket(webSocketUrl)
+    val webSocketUrl = slackClient.rtmConnect()
+    LOGGER.debug("Connecting to WebSocket webSocketUrl=$webSocketUrl")
+
+    slackClient.startWebSocket(webSocketUrl, WebSocketHandler(tokenOwnerId = tokenOwnerId))
 }

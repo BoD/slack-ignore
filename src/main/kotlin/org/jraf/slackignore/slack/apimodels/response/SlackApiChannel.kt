@@ -22,33 +22,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.jraf.slackignore
 
-import org.jraf.slackignore.arguments.Arguments
-import org.jraf.slackignore.slack.SlackClient
-import org.slf4j.LoggerFactory
-import org.slf4j.impl.SimpleLogger
+package org.jraf.slackignore.slack.apimodels.response
 
-private val LOGGER = run {
-    // This must be done before any logger is initialized
-    System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "trace")
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 
-    LoggerFactory.getLogger("Main")
-}
+@JsonClass(generateAdapter = true)
+data class SlackApiChannel(
+    val name: String,
+    val topic: SlackApiChannelTopicOrPurpose?,
+    val purpose: SlackApiChannelTopicOrPurpose?,
 
-suspend fun main(av: Array<String>) {
-    LOGGER.debug("Hello, World!")
-    val arguments = Arguments(av)
-
-    val slackClient = SlackClient(authToken = arguments.slackAuthToken, cookie = arguments.slackCookie)
-
-//    slackClient.chatPostMessage(
-//        channel = "C01QX5H7C2J",
-//        text = "The current time is ${Date()}"
-//    )
-
-    val webSocketUrl = slackClient.rtmConnect()
-    print(webSocketUrl)
-
-    slackClient.startWebSocket(webSocketUrl)
-}
+    @Json(name = "last_read")
+    val lastRead: String,
+)

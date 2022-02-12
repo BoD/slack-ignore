@@ -22,11 +22,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.jraf.slackignore.slack.retrofit.apimodels.response
+package org.jraf.slackignore.slack.apimodels.response
 
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
-data class SlackApiPostMessageResponse(
-    val ok: Boolean
+data class SlackApiRtmConnectResponse(
+    val ok: Boolean,
+    val url: String,
 )

@@ -24,21 +24,54 @@
  */
 package org.jraf.slackignore.slack.retrofit
 
-import org.jraf.slackignore.slack.retrofit.apimodels.query.SlackApiPostMessageQuery
-import org.jraf.slackignore.slack.retrofit.apimodels.response.SlackApiConversationsListResponse
-import org.jraf.slackignore.slack.retrofit.apimodels.response.SlackApiPostMessageResponse
+import org.jraf.slackignore.slack.apimodels.query.SlackApiChatPostMessageQuery
+import org.jraf.slackignore.slack.apimodels.query.SlackApiConversationsMarkQuery
+import org.jraf.slackignore.slack.apimodels.response.SlackApiChatPostMessageResponse
+import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsHistoryResponse
+import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsInfoResponse
+import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsListResponse
+import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsMarkResponse
+import org.jraf.slackignore.slack.apimodels.response.SlackApiRtmConnectResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface SlackRetrofitService {
+    // https://api.slack.com/methods/chat.postMessage
     @POST("chat.postMessage")
-    suspend fun postMessage(
+    suspend fun chatPostMessage(
         @Body
-        query: SlackApiPostMessageQuery,
-    ): SlackApiPostMessageResponse
+        query: SlackApiChatPostMessageQuery,
+    ): SlackApiChatPostMessageResponse
 
+    // https://api.slack.com/methods/rtm.connect
+    @POST("rtm.connect")
+    suspend fun rtmConnect(): SlackApiRtmConnectResponse
+
+    // https://api.slack.com/methods/conversations.info
+    @GET("conversations.info")
+    suspend fun conversationsInfo(
+        @Query("channel")
+        channel: String,
+    ): SlackApiConversationsInfoResponse
+
+    // https://api.slack.com/methods/conversations.history
+    @GET("conversations.history")
+    suspend fun conversationsHistory(
+        @Query("channel")
+        channel: String,
+    ): SlackApiConversationsHistoryResponse
+
+    // https://api.slack.com/methods/conversations.mark
+    @POST("conversations.mark")
+    suspend fun conversationsMark(
+        @Body
+        query: SlackApiConversationsMarkQuery,
+    ): SlackApiConversationsMarkResponse
+
+
+    // https://api.slack.com/methods/conversations.list
     @GET("conversations.list")
     suspend fun conversationsList(
         @Query("cursor")

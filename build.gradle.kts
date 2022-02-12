@@ -17,6 +17,7 @@ dependencies {
 
     implementation(KotlinX.Coroutines.jdk8)
 
+    implementation(Square.OkHttp3.okHttp)
     implementation(Square.Retrofit2.retrofit)
     implementation(Square.Retrofit2.Converter.moshi)
     implementation(Square.moshi)

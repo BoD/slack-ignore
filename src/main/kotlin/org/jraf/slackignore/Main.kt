@@ -24,16 +24,18 @@
  */
 package org.jraf.slackignore
 
+import org.jraf.slackignore.arguments.Arguments
 import org.jraf.slackignore.slack.SlackClient
 import org.slf4j.LoggerFactory
 import java.util.Date
 
 private val LOGGER = LoggerFactory.getLogger("Main")
 
-suspend fun main() {
+suspend fun main(av: Array<String>) {
     LOGGER.info("Hello, World!")
+    val arguments = Arguments(av)
 
-    val slackClient = SlackClient(authToken = authToken, cookie = cookie)
+    val slackClient = SlackClient(authToken = arguments.slackAuthToken, cookie = arguments.slackCookie)
 
     slackClient.postMessage(
         channel = "C01QX5H7C2J",

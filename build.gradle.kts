@@ -16,10 +16,13 @@ dependencies {
     implementation("org.slf4j", "slf4j-simple", "_")
 
     implementation(KotlinX.Coroutines.jdk8)
+
     implementation(Square.Retrofit2.retrofit)
     implementation(Square.Retrofit2.Converter.moshi)
     implementation(Square.moshi)
     kapt(Square.Moshi.kotlinCodegen)
+
+    implementation(KotlinX.cli)
 
     testImplementation(kotlin("test"))
 }
@@ -40,6 +43,7 @@ tasks {
 
     compileKotlin {
         kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 
     compileTestKotlin {

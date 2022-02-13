@@ -24,6 +24,9 @@
  */
 package org.jraf.slackignore
 
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import org.jraf.slackignore.arguments.Arguments
 import org.jraf.slackignore.slack.SlackClient
 import org.jraf.slackignore.slack.WebSocketHandler
@@ -33,26 +36,43 @@ import org.slf4j.impl.SimpleLogger
 private val LOGGER = run {
     // This must be done before any logger is initialized
     System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "trace")
+    System.setProperty(SimpleLogger.SHOW_DATE_TIME_KEY, "true")
+    System.setProperty(SimpleLogger.DATE_TIME_FORMAT_KEY, "yyyy-MM-dd HH:mm:ss")
 
     LoggerFactory.getLogger("Main")
 }
 
+@OptIn(DelicateCoroutinesApi::class)
 suspend fun main(av: Array<String>) {
     LOGGER.info("Hello, World!")
     val arguments = Arguments(av)
 
     val slackClient = SlackClient(authToken = arguments.slackAuthToken, cookie = arguments.slackCookie)
 
-//    slackClient.chatPostMessage(
-//        channel = "C01QX5H7C2J",
-//        text = "The current time is ${Date()}"
-//    )
-
     val tokenOwnerId = slackClient.tokenOwnerId()
     LOGGER.debug("Token owner's id: $tokenOwnerId")
 
-    val webSocketUrl = slackClient.rtmConnect()
-    LOGGER.debug("Connecting to WebSocket webSocketUrl=$webSocketUrl")
+    LOGGER.info("Getting the list of all members (that could take a while)...")
+    val allMembers = GlobalScope.async { slackClient.getAllMembers() }
 
-    slackClient.startWebSocket(webSocketUrl, WebSocketHandler(tokenOwnerId = tokenOwnerId))
+    LOGGER.info("Getting the list of all channels (that could take a while)...")
+    val allChannels = GlobalScope.async { slackClient.getAllChannels() }
+
+
+
+    while (true) {
+        val webSocketUrl = slackClient.rtmConnect()
+        LOGGER.debug("Connecting to WebSocket webSocketUrl=$webSocketUrl")
+
+        slackClient.startWebSocket(
+            webSocketUrl,
+            WebSocketHandler(
+                tokenOwnerId = tokenOwnerId,
+                memberList = allMembers.await(),
+                channelList = allChannels.await(),
+                ignoreRules = ignoreRules
+            )
+        )
+        LOGGER.debug("Was disconnected, reconnecting...")
+    }
 }

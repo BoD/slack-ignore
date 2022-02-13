@@ -28,20 +28,13 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
-data class SlackApiWebSocketMessageMessage(
-    val user: String? = null,
+data class SlackApiMember(
+    val id: String,
+    val name: String,
 
-    @Json(name = "username")
-    val userName: String? = null,
+    @Json(name = "real_name")
+    val realName: String? = null,
 
-    val channel: String,
-
-    val text: String,
-
-    val ts: String,
-
-    @Json(name = "bot_profile")
-    val botProfile: SlackApiWebSocketBotProfile? = null,
-
-    val attachments: List<SlackApiWebSocketAttachment>? = null,
+    @Json(name = "is_bot")
+    val isBot: Boolean,
 )

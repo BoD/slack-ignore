@@ -31,9 +31,13 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okhttp3.internal.notify
+import okhttp3.internal.wait
 import okio.ByteString
 import org.jraf.slackignore.slack.apimodels.query.SlackApiChatPostMessageQuery
 import org.jraf.slackignore.slack.apimodels.query.SlackApiConversationsMarkQuery
+import org.jraf.slackignore.slack.apimodels.response.SlackApiChannel
+import org.jraf.slackignore.slack.apimodels.response.SlackApiMember
 import org.jraf.slackignore.slack.apimodels.response.SlackApiMessage
 import org.jraf.slackignore.slack.apimodels.response.SlackApiWebSocketMessage
 import org.jraf.slackignore.slack.apimodels.response.SlackApiWebSocketMessageMessage
@@ -41,8 +45,6 @@ import org.jraf.slackignore.slack.retrofit.SlackRetrofitService
 import org.slf4j.LoggerFactory
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import java.net.InetSocketAddress
-import java.net.Proxy
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
@@ -72,8 +74,8 @@ class SlackClient(
     private fun createRetrofit(): Retrofit = Retrofit.Builder()
         .client(
             OkHttpClient.Builder()
-                .sslSocketFactory(trustAllCertsSslSocketFactory(), trustAllCerts()[0])
-                .proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress("localhost", 8888)))
+//                .sslSocketFactory(trustAllCertsSslSocketFactory(), trustAllCerts()[0])
+//                .proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress("localhost", 8888)))
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()
                         .addHeader("Authorization", "Bearer $authToken")
@@ -122,7 +124,7 @@ class SlackClient(
     suspend fun lastReadMessageTs(channel: String): String {
         return try {
             val response = service.conversationsInfo(channel)
-            response.channel.lastRead
+            response.channel.lastRead!!
         } catch (e: Exception) {
             LOGGER.warn("Could not make network call", e)
             throw e
@@ -149,7 +151,41 @@ class SlackClient(
         }
     }
 
-    suspend fun startWebSocket(url: String, handler: WebSocketHandler) {
+    suspend fun getAllMembers(): List<SlackApiMember> {
+        return try {
+            val memberList = mutableListOf<SlackApiMember>()
+            var cursor: String? = null
+            do {
+                val response = service.usersList(cursor = cursor)
+                memberList += response.members
+                cursor = response.responseMetadata?.nextCursor?.ifBlank { null }
+            } while (cursor != null)
+            memberList
+        } catch (e: Exception) {
+            LOGGER.warn("Could not make network call", e)
+            throw e
+        }
+    }
+
+    suspend fun getAllChannels(): List<SlackApiChannel> {
+        return try {
+            val channelList = mutableListOf<SlackApiChannel>()
+            var cursor: String? = null
+            do {
+                val response = service.conversationsList(cursor = cursor)
+                channelList += response.channels
+                cursor = response.responseMetadata?.nextCursor?.ifBlank { null }
+            } while (cursor != null)
+            channelList
+        } catch (e: Exception) {
+            LOGGER.warn("Could not make network call", e)
+            throw e
+        }
+    }
+
+    fun startWebSocket(url: String, handler: WebSocketHandler) {
+        val syncObject = url
+
         val moshi: Moshi = Moshi.Builder().build()
         val messageJsonAdapter = moshi.adapter(SlackApiWebSocketMessage::class.java)
         val messageMessageJsonAdapter = moshi.adapter(SlackApiWebSocketMessageMessage::class.java)
@@ -168,7 +204,7 @@ class SlackClient(
             override fun onMessage(webSocket: WebSocket, text: String) {
                 LOGGER.debug("WebSocket message $text")
                 val message = messageJsonAdapter.fromJson(text)!!
-                if (message.type == "message") {
+                if (message.type == "message" && (message.subtype == null || message.subtype == "bot_message")) {
                     val messageMessage = messageMessageJsonAdapter.fromJson(text)!!
                     handleChannelMessage(messageMessage, handler)
                 }
@@ -184,12 +220,25 @@ class SlackClient(
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 LOGGER.debug("WebSocket closed $code $reason")
+                synchronized(syncObject) {
+                    syncObject.notify()
+                }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 LOGGER.debug("WebSocket failure $t $response")
+                synchronized(syncObject) {
+                    syncObject.notify()
+                }
             }
         })
+
+        synchronized(syncObject) {
+            try {
+                syncObject.wait()
+            } catch (_: InterruptedException) {
+            }
+        }
     }
 
     private fun handleChannelMessage(
@@ -199,7 +248,7 @@ class SlackClient(
         LOGGER.debug("message=$message")
 
         if (message.user == handler.tokenOwnerId) {
-            LOGGER.debug("Own message, ignoring")
+            LOGGER.debug("Own message, skipped")
             return
         }
 
@@ -209,13 +258,39 @@ class SlackClient(
         LOGGER.debug("lastReadMessageTs=$lastReadMessageTs conversationHistory=$conversationHistory")
 
         if (lastReadMessageTs == conversationHistory[0] || lastReadMessageTs == conversationHistory[1]) {
-            LOGGER.debug("Up to date!")
-            if (message.text.contains("sport", ignoreCase = true)) {
-                LOGGER.info("Ignoring message '${message.text}'")
+            LOGGER.debug("Up to date")
+            if (handler.shouldIgnore(message.toChannelMessage(handler.membersById, handler.channelsById))) {
+                LOGGER.info("Message $message should be ignored: marking as read")
                 runBlocking { conversationsMark(message.channel, message.ts) }
+            } else {
+                LOGGER.info("Message $message should not be ignored: skipping")
             }
         } else {
-            LOGGER.debug("NOT up to date!")
+            LOGGER.debug("Not up to date: don't mark as read")
         }
+    }
+
+    private fun SlackApiWebSocketMessageMessage.toChannelMessage(
+        membersById: Map<String, SlackApiMember>,
+        channelsById: Map<String, SlackApiChannel>,
+    ): WebSocketHandler.ChannelMessage {
+        val member = membersById[user]
+        val channel = channelsById[channel]!!
+
+        val memberNickName = member?.name ?: userName
+        val memberRealName = member?.realName ?: userName ?: botProfile?.name
+        val memberIsBot = member?.isBot ?: (botProfile != null)
+        val messageText = text.ifBlank { null }
+        val attachmentPretext = attachments?.firstOrNull()?.pretext
+        val attachmentText = attachments?.firstOrNull()?.text
+        val text = listOfNotNull(messageText, attachmentPretext, attachmentText).joinToString(" ")
+
+        return WebSocketHandler.ChannelMessage(
+            channelName = channel.name,
+            authorNickName = memberNickName,
+            authorRealName = memberRealName!!,
+            authorIsBot = memberIsBot,
+            text = text,
+        )
     }
 }

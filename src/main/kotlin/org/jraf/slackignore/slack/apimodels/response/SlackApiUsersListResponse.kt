@@ -24,10 +24,16 @@
  */
 package org.jraf.slackignore.slack.apimodels.response
 
+import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
-data class SlackApiUser(
-    val name: String,
-    val id: String,
+data class SlackApiUsersListResponse(
+    val ok: Boolean,
+
+    val members: List<SlackApiMember>,
+
+    @Json(name = "response_metadata")
+    val responseMetadata: SlackApiResponseMetadata?,
 )
+

@@ -30,10 +30,11 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class SlackApiChannel(
+    val id: String,
     val name: String,
     val topic: SlackApiChannelTopicOrPurpose?,
     val purpose: SlackApiChannelTopicOrPurpose?,
 
     @Json(name = "last_read")
-    val lastRead: String,
+    val lastRead: String? = null,
 )

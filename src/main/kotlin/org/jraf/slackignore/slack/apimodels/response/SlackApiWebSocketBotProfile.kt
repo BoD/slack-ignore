@@ -24,24 +24,10 @@
  */
 package org.jraf.slackignore.slack.apimodels.response
 
-import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
-data class SlackApiWebSocketMessageMessage(
-    val user: String? = null,
-
-    @Json(name = "username")
-    val userName: String? = null,
-
-    val channel: String,
-
-    val text: String,
-
-    val ts: String,
-
-    @Json(name = "bot_profile")
-    val botProfile: SlackApiWebSocketBotProfile? = null,
-
-    val attachments: List<SlackApiWebSocketAttachment>? = null,
+data class SlackApiWebSocketBotProfile(
+    val name: String? = null,
+    val id: String,
 )

@@ -33,6 +33,7 @@ import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsInfoRe
 import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsListResponse
 import org.jraf.slackignore.slack.apimodels.response.SlackApiConversationsMarkResponse
 import org.jraf.slackignore.slack.apimodels.response.SlackApiRtmConnectResponse
+import org.jraf.slackignore.slack.apimodels.response.SlackApiUsersListResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -43,6 +44,12 @@ interface SlackRetrofitService {
     @GET("auth.test")
     suspend fun authTest(): SlackApiAuthTestResponse
 
+    // https://api.slack.com/methods/users.list
+    @GET("users.list")
+    suspend fun usersList(
+        @Query("cursor")
+        cursor: String? = null,
+    ): SlackApiUsersListResponse
 
     // https://api.slack.com/methods/chat.postMessage
     @POST("chat.postMessage")
@@ -75,7 +82,6 @@ interface SlackRetrofitService {
         @Body
         query: SlackApiConversationsMarkQuery,
     ): SlackApiConversationsMarkResponse
-
 
     // https://api.slack.com/methods/conversations.list
     @GET("conversations.list")

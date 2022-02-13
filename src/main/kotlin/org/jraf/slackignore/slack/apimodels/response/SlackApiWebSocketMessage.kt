@@ -29,4 +29,5 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class SlackApiWebSocketMessage(
     val type: String,
+    val subtype: String? = null,
 )

@@ -46,8 +46,8 @@ class WebSocketHandler(
 
         return ignoreRules.any { rule ->
             (rule.channelName == null || message.channelName != null && message.channelName.matches(rule.channelName)) &&
-                    (rule.messageAuthorNickName == null || message.authorNickName != null && message.authorNickName.matches(
-                        rule.messageAuthorNickName)) &&
+                    (rule.messageAuthorNickname == null || message.authorNickname != null && message.authorNickname.matches(
+                        rule.messageAuthorNickname)) &&
                     (rule.messageAuthorRealName == null || message.authorRealName.matches(rule.messageAuthorRealName)) &&
                     (rule.messageAuthorIsBot == null || message.authorIsBot == rule.messageAuthorIsBot) &&
                     (rule.messageText == null || message.text.matches(rule.messageText))
@@ -59,28 +59,28 @@ class WebSocketHandler(
          * The channel name, or `null` if the message is not in a channel (private message).
          */
         val channelName: String?,
-        val authorNickName: String?,
+        val authorNickname: String?,
         val authorRealName: String,
         val authorIsBot: Boolean,
         val text: String,
     )
 
-    class IgnoreRule(
+    data class IgnoreRule(
         val channelName: Regex?,
-        val messageAuthorNickName: Regex?,
+        val messageAuthorNickname: Regex?,
         val messageAuthorRealName: Regex?,
         val messageAuthorIsBot: Boolean?,
         val messageText: Regex?,
     ) {
         constructor(
             channelName: String? = null,
-            messageAuthorNickName: String? = null,
+            messageAuthorNickname: String? = null,
             messageAuthorRealName: String? = null,
             messageAuthorIsBot: Boolean? = null,
             messageText: String? = null,
         ) : this(
             channelName = channelName?.let { Regex(it) },
-            messageAuthorNickName = messageAuthorNickName?.let { Regex(it) },
+            messageAuthorNickname = messageAuthorNickname?.let { Regex(it) },
             messageAuthorRealName = messageAuthorRealName?.let { Regex(it) },
             messageAuthorIsBot = messageAuthorIsBot,
             messageText = messageText?.let { Regex(it) }

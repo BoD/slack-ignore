@@ -291,7 +291,7 @@ private fun SlackApiWebSocketMessageMessage.toChannelMessage(
 
     return WebSocketHandler.ChannelMessage(
         channelName = channel?.name,
-        authorNickName = memberNickName,
+        authorNickname = memberNickName,
         authorRealName = memberRealName!!,
         authorIsBot = memberIsBot,
         text = text,

@@ -45,7 +45,7 @@ class WebSocketHandler(
         LOGGER.debug("shouldIgnore message=$message")
 
         return ignoreRules.any { rule ->
-            (rule.channelName == null || message.channelName.matches(rule.channelName)) &&
+            (rule.channelName == null || message.channelName != null && message.channelName.matches(rule.channelName)) &&
                     (rule.messageAuthorNickName == null || message.authorNickName != null && message.authorNickName.matches(
                         rule.messageAuthorNickName)) &&
                     (rule.messageAuthorRealName == null || message.authorRealName.matches(rule.messageAuthorRealName)) &&
@@ -55,7 +55,10 @@ class WebSocketHandler(
     }
 
     data class ChannelMessage(
-        val channelName: String,
+        /**
+         * The channel name, or `null` if the message is not in a channel (private message).
+         */
+        val channelName: String?,
         val authorNickName: String?,
         val authorRealName: String,
         val authorIsBot: Boolean,

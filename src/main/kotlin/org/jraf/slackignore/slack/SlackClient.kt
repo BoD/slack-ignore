@@ -45,6 +45,8 @@ import org.jraf.slackignore.slack.retrofit.SlackRetrofitService
 import org.slf4j.LoggerFactory
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
@@ -54,28 +56,21 @@ import javax.net.ssl.X509TrustManager
 private val LOGGER = LoggerFactory.getLogger(SlackClient::class.java)
 
 private const val SLACK_BASE_URI = "https://slack.com/api/"
+private const val USE_PROXY = false
 
 class SlackClient(
     private val authToken: String,
     private val cookie: String,
 ) {
-    private fun trustAllCertsSslSocketFactory() = SSLContext.getInstance("SSL").apply {
-        init(null, trustAllCerts(), SecureRandom())
-    }.socketFactory
-
-    private fun trustAllCerts() = arrayOf<X509TrustManager>(
-        object : X509TrustManager {
-            override fun getAcceptedIssuers(): Array<X509Certificate?> = arrayOf()
-            override fun checkClientTrusted(certs: Array<X509Certificate?>?, authType: String?) {}
-            override fun checkServerTrusted(certs: Array<X509Certificate?>?, authType: String?) {}
-        }
-    )
-
     private fun createRetrofit(): Retrofit = Retrofit.Builder()
         .client(
             OkHttpClient.Builder()
-//                .sslSocketFactory(trustAllCertsSslSocketFactory(), trustAllCerts()[0])
-//                .proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress("localhost", 8888)))
+                .apply {
+                    if (USE_PROXY) {
+                        sslSocketFactory(trustAllCertsSslSocketFactory(), trustAllCerts()[0])
+                        proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress("localhost", 8888)))
+                    }
+                }
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()
                         .addHeader("Authorization", "Bearer $authToken")
@@ -203,10 +198,14 @@ class SlackClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 LOGGER.debug("WebSocket message $text")
-                val message = messageJsonAdapter.fromJson(text)!!
-                if (message.type == "message" && (message.subtype == null || message.subtype == "bot_message")) {
-                    val messageMessage = messageMessageJsonAdapter.fromJson(text)!!
-                    handleChannelMessage(messageMessage, handler)
+                try {
+                    val message = messageJsonAdapter.fromJson(text)!!
+                    if (message.type == "message" && (message.subtype == null || message.subtype == "bot_message")) {
+                        val messageMessage = messageMessageJsonAdapter.fromJson(text)!!
+                        handleChannelMessage(messageMessage, handler)
+                    }
+                } catch (e: Exception) {
+                    LOGGER.error("Exception while handling message", e)
                 }
             }
 
@@ -251,6 +250,14 @@ class SlackClient(
             LOGGER.debug("Own message, skipped")
             return
         }
+        val shouldIgnore = handler.shouldIgnore(message.toChannelMessage(handler.membersById, handler.channelsById))
+        LOGGER.debug("shouldIgnore=$shouldIgnore")
+        if (!shouldIgnore) {
+            LOGGER.info("Message $message should not be ignored: skipping")
+            return
+        } else {
+            LOGGER.info("Message $message should be ignored: check if we're up to date on the channel")
+        }
 
         val conversationHistory = runBlocking { conversationsHistory(message.channel).map { it.ts } }
         val lastReadMessageTs = runBlocking { lastReadMessageTs(message.channel) }
@@ -259,38 +266,46 @@ class SlackClient(
 
         if (lastReadMessageTs == conversationHistory[0] || lastReadMessageTs == conversationHistory[1]) {
             LOGGER.debug("Up to date")
-            if (handler.shouldIgnore(message.toChannelMessage(handler.membersById, handler.channelsById))) {
-                LOGGER.info("Message $message should be ignored: marking as read")
-                runBlocking { conversationsMark(message.channel, message.ts) }
-            } else {
-                LOGGER.info("Message $message should not be ignored: skipping")
-            }
+            LOGGER.info("Message $message should be ignored: marking as read")
+            runBlocking { conversationsMark(message.channel, message.ts) }
         } else {
             LOGGER.debug("Not up to date: don't mark as read")
         }
     }
-
-    private fun SlackApiWebSocketMessageMessage.toChannelMessage(
-        membersById: Map<String, SlackApiMember>,
-        channelsById: Map<String, SlackApiChannel>,
-    ): WebSocketHandler.ChannelMessage {
-        val member = membersById[user]
-        val channel = channelsById[channel]!!
-
-        val memberNickName = member?.name ?: userName
-        val memberRealName = member?.realName ?: userName ?: botProfile?.name
-        val memberIsBot = member?.isBot ?: (botProfile != null)
-        val messageText = text.ifBlank { null }
-        val attachmentPretext = attachments?.firstOrNull()?.pretext
-        val attachmentText = attachments?.firstOrNull()?.text
-        val text = listOfNotNull(messageText, attachmentPretext, attachmentText).joinToString(" ")
-
-        return WebSocketHandler.ChannelMessage(
-            channelName = channel.name,
-            authorNickName = memberNickName,
-            authorRealName = memberRealName!!,
-            authorIsBot = memberIsBot,
-            text = text,
-        )
-    }
 }
+
+private fun SlackApiWebSocketMessageMessage.toChannelMessage(
+    membersById: Map<String, SlackApiMember>,
+    channelsById: Map<String, SlackApiChannel>,
+): WebSocketHandler.ChannelMessage {
+    val member = membersById[user]
+    val channel = channelsById[channel] // Can be null if this is a private message
+
+    val memberNickName = member?.name ?: userName
+    val memberRealName = member?.realName ?: userName ?: botProfile?.name
+    val memberIsBot = member?.isBot ?: (botProfile != null)
+    val messageText = text.ifBlank { null }
+    val attachmentPretext = attachments?.firstOrNull()?.pretext
+    val attachmentText = attachments?.firstOrNull()?.text
+    val text = listOfNotNull(messageText, attachmentPretext, attachmentText).joinToString(" ")
+
+    return WebSocketHandler.ChannelMessage(
+        channelName = channel?.name,
+        authorNickName = memberNickName,
+        authorRealName = memberRealName!!,
+        authorIsBot = memberIsBot,
+        text = text,
+    )
+}
+
+private fun trustAllCertsSslSocketFactory() = SSLContext.getInstance("SSL").apply {
+    init(null, trustAllCerts(), SecureRandom())
+}.socketFactory
+
+private fun trustAllCerts() = arrayOf<X509TrustManager>(
+    object : X509TrustManager {
+        override fun getAcceptedIssuers(): Array<X509Certificate?> = arrayOf()
+        override fun checkClientTrusted(certs: Array<X509Certificate?>?, authType: String?) {}
+        override fun checkServerTrusted(certs: Array<X509Certificate?>?, authType: String?) {}
+    }
+)

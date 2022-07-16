@@ -33,26 +33,16 @@ application {
 }
 
 tasks {
-    wrapper {
-        distributionType = Wrapper.DistributionType.ALL
-        gradleVersion = "7.3.1"
-    }
-
-    test {
-        useJUnitPlatform()
-    }
+scp test {
+    useJUnitPlatform()
+}
 
     compileKotlin {
         kotlinOptions.jvmTarget = "1.8"
-        kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 
     compileTestKotlin {
         kotlinOptions.jvmTarget = "1.8"
-    }
-
-    register("stage") {
-        dependsOn(":installDist")
     }
 }
 

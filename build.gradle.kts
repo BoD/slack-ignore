@@ -33,9 +33,9 @@ application {
 }
 
 tasks {
-scp test {
-    useJUnitPlatform()
-}
+    test {
+        useJUnitPlatform()
+    }
 
     compileKotlin {
         kotlinOptions.jvmTarget = "1.8"

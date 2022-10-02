@@ -1,7 +1,10 @@
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+
 plugins {
     kotlin("jvm")
     kotlin("kapt")
     application
+    id("com.bmuschko.docker-java-application")
 }
 
 group = "org.jraf"
@@ -32,19 +35,22 @@ application {
     mainClass.set("org.jraf.slackignore.MainKt")
 }
 
-tasks {
-    test {
-        useJUnitPlatform()
+docker {
+    javaApplication {
+        maintainer.set("BoD <BoD@JRAF.org>")
+        ports.set(emptyList())
+        images.add("bodlulu/${rootProject.name}:latest")
     }
-
-    compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
-    }
-
-    compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+    registryCredentials {
+        username.set(System.getenv("DOCKER_USERNAME"))
+        password.set(System.getenv("DOCKER_PASSWORD"))
     }
 }
 
-// Run `./gradlew refreshVersions` to update dependencies
-// Run `./gradlew distZip` to create a zip distribution
+tasks.withType<DockerBuildImage> {
+    platform.set("linux/amd64")
+}
+
+// `./gradlew refreshVersions` to update dependencies
+// `./gradlew distZip` to create a zip distribution
+// `DOCKER_USERNAME=<your docker hub login> DOCKER_PASSWORD=<your docker hub password> ./gradlew dockerPushImage` to build and push the image

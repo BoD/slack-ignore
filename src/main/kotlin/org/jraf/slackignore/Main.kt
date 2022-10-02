@@ -31,7 +31,7 @@ import org.jraf.slackignore.arguments.Arguments
 import org.jraf.slackignore.slack.SlackClient
 import org.jraf.slackignore.slack.WebSocketHandler
 import org.slf4j.LoggerFactory
-import org.slf4j.impl.SimpleLogger
+import org.slf4j.simple.SimpleLogger
 
 private val LOGGER = run {
     // This must be done before any logger is initialized

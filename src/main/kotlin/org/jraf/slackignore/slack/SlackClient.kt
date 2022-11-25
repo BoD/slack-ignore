@@ -25,6 +25,7 @@
 package org.jraf.slackignore.slack
 
 import com.squareup.moshi.Moshi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -154,6 +155,8 @@ class SlackClient(
                 val response = service.usersList(cursor = cursor)
                 memberList += response.members
                 cursor = response.responseMetadata?.nextCursor?.ifBlank { null }
+                // Avoid hitting the rate limit
+                delay(3000)
             } while (cursor != null)
             memberList
         } catch (e: Exception) {
@@ -170,6 +173,8 @@ class SlackClient(
                 val response = service.conversationsList(cursor = cursor)
                 channelList += response.channels
                 cursor = response.responseMetadata?.nextCursor?.ifBlank { null }
+                // Avoid hitting the rate limit
+                delay(3000)
             } while (cursor != null)
             channelList
         } catch (e: Exception) {

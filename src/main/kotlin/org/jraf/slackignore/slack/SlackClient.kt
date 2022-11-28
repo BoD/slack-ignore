@@ -152,6 +152,7 @@ class SlackClient(
             val memberList = mutableListOf<SlackApiMember>()
             var cursor: String? = null
             do {
+                LOGGER.debug("Calling usersList cursor=$cursor")
                 val response = service.usersList(cursor = cursor)
                 memberList += response.members
                 cursor = response.responseMetadata?.nextCursor?.ifBlank { null }
@@ -170,6 +171,7 @@ class SlackClient(
             val channelList = mutableListOf<SlackApiChannel>()
             var cursor: String? = null
             do {
+                LOGGER.debug("Calling conversationsList cursor=$cursor")
                 val response = service.conversationsList(cursor = cursor)
                 channelList += response.channels
                 cursor = response.responseMetadata?.nextCursor?.ifBlank { null }

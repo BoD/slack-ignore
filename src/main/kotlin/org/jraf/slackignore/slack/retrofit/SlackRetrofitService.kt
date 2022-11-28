@@ -49,6 +49,9 @@ interface SlackRetrofitService {
     suspend fun usersList(
         @Query("cursor")
         cursor: String? = null,
+
+        @Query("limit")
+        limit: Int = 1000,
     ): SlackApiUsersListResponse
 
     // https://api.slack.com/methods/chat.postMessage
@@ -88,6 +91,9 @@ interface SlackRetrofitService {
     suspend fun conversationsList(
         @Query("cursor")
         cursor: String? = null,
+
+        @Query("limit")
+        limit: Int = 1000,
 
         @Query("exclude_archived")
         excludeArchived: Boolean = true,

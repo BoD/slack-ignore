@@ -58,16 +58,17 @@ suspend fun main(av: Array<String>) {
     LOGGER.info("Getting the list of all channels (that could take a while)...")
     val allChannels = GlobalScope.async { slackClient.getAllChannels() }
 
+    val memberList = allMembers.await()
+    val channelList = allChannels.await()
     while (true) {
         val webSocketUrl = slackClient.rtmConnect()
         LOGGER.debug("Connecting to WebSocket webSocketUrl=$webSocketUrl")
-
         slackClient.startWebSocket(
             webSocketUrl,
             WebSocketHandler(
                 tokenOwnerId = tokenOwnerId,
-                memberList = allMembers.await(),
-                channelList = allChannels.await(),
+                memberList = memberList,
+                channelList = channelList,
                 ignoreRules = arguments.ignoreRules
             )
         )

@@ -83,7 +83,7 @@ class WebSocketHandler(
             messageAuthorNickname = messageAuthorNickname?.let { Regex(it) },
             messageAuthorRealName = messageAuthorRealName?.let { Regex(it) },
             messageAuthorIsBot = messageAuthorIsBot,
-            messageText = messageText?.let { Regex(it) }
+            messageText = messageText?.let { Regex(it, RegexOption.DOT_MATCHES_ALL) }
         )
     }
 }

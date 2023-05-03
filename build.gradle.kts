@@ -11,6 +11,11 @@ plugins {
 group = "org.jraf"
 version = "1.0.0"
 
+
+kotlin {
+    jvmToolchain(11)
+}
+
 repositories {
     mavenCentral()
 }
@@ -19,13 +24,13 @@ dependencies {
     implementation("org.slf4j", "slf4j-api", "_")
     implementation("org.slf4j", "slf4j-simple", "_")
 
-    implementation(KotlinX.Coroutines.jdk8)
+    implementation(KotlinX.coroutines.jdk9)
 
-    implementation(Square.OkHttp3.okHttp)
-    implementation(Square.Retrofit2.retrofit)
-    implementation(Square.Retrofit2.Converter.moshi)
+    implementation(Square.okHttp3.okHttp)
+    implementation(Square.retrofit2.retrofit)
+    implementation(Square.retrofit2.converter.moshi)
     implementation(Square.moshi)
-    kapt(Square.Moshi.kotlinCodegen)
+    kapt(Square.moshi.kotlinCodegen)
 
     implementation(KotlinX.cli)
 
@@ -38,6 +43,8 @@ application {
 
 docker {
     javaApplication {
+        // Use OpenJ9 instead of the default one
+        baseImage.set("adoptopenjdk/openjdk11-openj9:x86_64-ubuntu-jre-11.0.18_10_openj9-0.36.1")
         maintainer.set("BoD <BoD@JRAF.org>")
         ports.set(emptyList())
         images.add("bodlulu/${rootProject.name}:latest")
@@ -54,7 +61,13 @@ tasks.withType<DockerBuildImage> {
 }
 
 tasks.withType<Dockerfile> {
-    environmentVariable("MALLOC_ARENA_MAX", "4")
+    // Move the COPY instructions to the end
+    // See https://github.com/bmuschko/gradle-docker-plugin/issues/1093
+    instructions.set(
+        instructions.get().sortedBy { instruction ->
+            if (instruction.keyword == Dockerfile.CopyFileInstruction.KEYWORD) 1 else 0
+        }
+    )
 }
 
 // `./gradlew refreshVersions` to update dependencies
